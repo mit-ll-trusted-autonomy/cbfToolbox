@@ -1,7 +1,7 @@
 <!-- Author: Andrew Schoer, andrew.schoer@ll.mit.edu -->
 
 # Control Barrier Function Toolbox #
-A Python package that makes control barrier functions simple.
+A Python package to make implementing control barrier functions (CBFs) and control Lyapunov functions (CLFs) simple.
 
 ## Setup Python environment with Conda
 First clone the environment into your desired location
