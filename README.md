@@ -12,7 +12,7 @@ cd cbfToolbox/
 Create a conda environment to run the CBF Toolbox.
 ```
 conda env create -f ./environment.yml
-conda activate cbf_toolbox
+conda activate cbfToolbox
 pip install -e .
 ```
 Try running one of the examples.
