@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation as R
 
 class Shape(ABC):
     """Abstract class that defines requirements for various shapes"""
@@ -25,7 +26,7 @@ class Shape(ABC):
         pass
 
     @abstractmethod
-    def plot(self):
+    def plot(self,ax,x):
         pass
 
 class Point(Shape):
@@ -34,64 +35,62 @@ class Point(Shape):
         """Function that defines the shape"""
         return x.T.dot(x) - offset**2
 
-    def plot(self,x,color='red'):
+    def plot(self,ax,x,color='red'):
         """Plot the shape"""
-        plt.plot(x[0], x[1],'x',color=color,mew=3)
+        if len(x) == 2:
+            ax.plot(x[0], x[1],'x',color=color,mew=3)
+        elif len(x) == 3:
+            ax.plot3D([x[0]],[x[1]],[x[2]],color=color, marker='x')
 
 class Ellipsoid(Shape):
-    """An ellipsoid is a surface that can be obtained by an affine transformation of a sphere"""
-    def __init__(self,axes,rotation=0,invert=False): # rotation in degrees
+    def __init__(self, axes, rotation=None, invert=False, degrees=True):
         self.axes = axes
-        self.rotation = rotation # allow user to pass 3x3 rotation matrix
+        if len(axes) > 3:
+            # Rotation not currently defined for ndim > 3
+            rotation = None
+            
+        if rotation is None:
+            self.rot_mat = np.identity(len(axes))
+        elif isinstance(rotation, (int, float)):
+            # counter clockwise rotation
+            theta = np.radians(rotation)
+            self.rot_mat = np.array([[np.cos(theta), -np.sin(theta)],
+                                     [np.sin(theta),  np.cos(theta)]])
+        else:
+            if isinstance(rotation,(list,tuple)):
+                rotation = np.array(rotation)
+            if rotation.size == 3:
+                # Euler angles
+                alpha,beta,gamma = rotation
+                r = R.from_euler('zyx', [[alpha, beta, gamma]], degrees=degrees)
+                self.rot_mat = np.squeeze(r.as_matrix())
+            else:
+                # rotation matrix given
+                self.rot_mat = rotation
+
         self.sign = -1 if invert else 1
 
     def __str__(self):
         return 'Ellipsoid with axes {}'.format(self.axes)
-
-    def func(self,x,buffer):
+    
+    def func(self,x,buffer=0.):
         M = self.calc_M(buffer)
         return (x.T.dot(M).dot(x) - 1) * self.sign
-
+    
     def calc_M(self,buffer):
-        """Calculates the transformation matrix from ellipsoid to unit sphere"""
         aug_axes = [a + buffer * self.sign for a in self.axes]
-        theta = np.radians(self.rotation)
+        diag = [a**-2 for a in aug_axes]
+        M = np.diag(diag)
+        return self.rot_mat @ M @ self.rot_mat.T
+    
+    def plot(self,ax,x,color='red'):
+        '''Plot the ellipsoid on an axis'''
+        if len(self.axes) == 2:
+            self.plot2d(ax,x,color)
+        elif len(self.axes) == 3:
+            self.plot3d(ax,x,color)
 
-        csn = np.cos(theta)
-        sn = np.sin(theta)
-
-        a = (csn/aug_axes[0])**2 + (sn/aug_axes[1])**2
-        b = -sn*csn*(1/aug_axes[1]**2 - 1/aug_axes[0]**2)
-        c = (sn/aug_axes[0])**2 + (csn/aug_axes[1])**2
-
-        return np.array([[a,b],[b,c]])
-
-    @property
-    def axes(self):
-        return self._axes
-
-    @axes.setter
-    def axes(self,value):
-        value = np.array(value)
-        if value.ndim > 1:
-            raise ValueError('Axes must be a one-dimensional array')
-        self._axes = value
-
-    @property
-    def rotation(self):
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self,value):
-        if value is not None:
-            value = np.array(value)
-            
-        self._rotation = value
-
-    def plot(self,x0,color='red'):
-        '''Plot the ellipsoid on an axis
-        NOTE: ONLY PLOTTING THE FIRST 2 DIMS ON XY PLANE
-        '''
+    def plot2d(self,ax,x,color='red'):
         x_rad = self.axes[0]
         y_rad = self.axes[1]
 
@@ -100,30 +99,43 @@ class Ellipsoid(Shape):
         
         xl = [x_rad * np.cos(np.radians(d)) for d in deg]
         yl = [y_rad * np.sin(np.radians(d)) for d in deg]
-        xy_arr = np.array([xl, yl]).transpose()
+        xy_arr = np.array([xl, yl])
 
-        if self.rotation is None:
-            angle = 0
-        elif self.rotation.size > 1:
-            angle = self.rotation[3] # rotation around the z-axis
-        else:
-            angle = self.rotation
+        rot_mat = self.rot_mat
+        xy_arr = rot_mat @ xy_arr
 
-        theta = np.radians(angle)
-        if theta % np.pi != 0:
-            c, s = np.cos(theta), np.sin(theta)
-            rot_mat = np.array(((c, s), (-s, c)))
-            xy_arr = xy_arr.dot(rot_mat)
-
-        x = xy_arr[:,0] + x0[0]
-        y = xy_arr[:,1] + x0[1]
+        xx = xy_arr[0,:] + x[0]
+        yy = xy_arr[1,:] + x[1]
         
-        plt.plot(x, y, "-",color=color,linewidth=3)
-        # ax.axis('equal')
+        plt.plot(xx, yy, "-",color=color,linewidth=3)
+
+    def plot3d(self,ax,x,color='red'):
+        '''Plot the 3d ellipsoid on an axis'''
+
+        # Radii corresponding to the coefficients:
+        rx, ry, rz = self.axes
+
+        # Set of all spherical angles:
+        u = np.linspace(0, 2 * np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+
+        # Cartesian coordinates that correspond to the spherical angles:
+        # (this is the equation of an ellipsoid):
+        xx = rx * np.outer(np.cos(u), np.sin(v)) + x[0]
+        yy = ry * np.outer(np.sin(u), np.sin(v)) + x[1]
+        zz = rz * np.outer(np.ones_like(u), np.cos(v)) + x[2]
+
+        xyz = self.rot_mat @ np.stack([xx,yy,zz],axis=2).reshape(100*100,3).T
+        xx = xyz[0,:].reshape((100,100))
+        yy = xyz[1,:].reshape((100,100))
+        zz = xyz[2,:].reshape((100,100))
+
+        # Plot:
+        ax.plot_surface(xx, yy, zz,  rstride=4, cstride=4, color=color, alpha=0.5)
 
 class Sphere(Ellipsoid):
     """The set of points that are equal distance from the center point"""
-    def __init__(self,radius,invert=False,ndim=2):
+    def __init__(self, radius,invert=False,ndim=2):
         self.radius = radius
         super().__init__([radius]*ndim,invert=invert)
 
@@ -141,80 +153,95 @@ class Sphere(Ellipsoid):
         self._radius = value
 
 class HalfPlane(Shape):
-    """A planar region consisting of all points on one side of an infinite straight line,
-     and no points on the other side
-     """
-    def __init__(self, x, y, n=None, d=None):
-        
-        self.k_cbf = 1.0
-        self.d = d
-
-        minx = np.min(x)
-        maxx = np.max(x)
-        miny = np.min(y)
-        maxy = np.max(y)
-
-        if n is not None and d is not None:
-            self.n = n/np.linalg.norm(n)
-            # Sign of the line function
-            fsign = lambda x,y: np.sign(np.transpose(n).dot(np.array([[x,y]]).T) + d)[0]
-
-            # Find sign of the line function at the 4 corners of the region
-            fll=fsign(minx,miny)
-            flh=fsign(minx,maxy)
-            fhh=fsign(maxx,maxy)
-            fhl=fsign(maxx,miny)
-
-            # Make sure line is visible
-            if not (fll==flh and flh==fhh and fhh==fhl):
-                # Find points of the line at the intersection with the boundaries
-                xp = np.zeros(n.shape)
-                yp = np.zeros(n.shape)
-                p=0 # counts which intersection we are looking for (first or second)
-                if fll!=fhl: # south
-                    yp[p]=miny
-                    # solve n[0]x+n[1]y+d=0
-                    xp[p]=(-n[1]*yp[p]-d)/n[0]
-                    p+=1
-                if fll!=flh: # west
-                    xp[p]=minx
-                    yp[p]=(-n[0]*xp[p]-d)/n[1]
-                    p+=1
-                if fhl!=fhh: # east
-                    if p<2:
-                        xp[p]=maxx
-                        yp[p]=(-n[0]*xp[p]-d)/n[1]
-                        p+=1
-                if flh!=fhh: # north
-                    if p<2:
-                        yp[p]=maxy
-                        xp[p]=(-n[1]*yp[p]-d)/n[0]
-                        p+=1
-            else:
-                print('Line is not visible')
-            self.xp = xp
-            self.yp = yp
-            self.state = np.array([np.mean(self.xp), np.mean(self.yp)])
-
+    """A planar region consisting of all points on one side of an infinite straight line"""
+    # Currently only tested for 2D
+    def __init__(self, n, rotation=None, degrees=True) -> None:
+        if len(n) > 3:
+            # Rotation not currently defined for ndim > 3
+            rotation = None
+        if rotation is None:
+            self.rot_mat = np.identity(len(n))
+        elif isinstance(rotation, (int, float)):
+            # counter clockwise rotation
+            theta = np.radians(rotation)
+            self.rot_mat = np.array([[np.cos(theta), -np.sin(theta)],
+                                     [np.sin(theta),  np.cos(theta)]])
         else:
-            # Define the wall from bottom left of box to top right of box for ease
-            self.xp = x
-            self.yp = y
-            self.state = np.array([np.mean(x), np.mean(y)])
-            n = np.array([-np.diff(y),np.diff(x)]).squeeze()
-            self.n = n/np.linalg.norm(n)
+            if isinstance(rotation,(list,tuple)):
+                rotation = np.array(rotation)
+            if rotation.size == 3:
+                # Euler angles
+                alpha,beta,gamma = rotation
+                r = R.from_euler('zyx', [[alpha, beta, gamma]], degrees=degrees)
+                self.rot_mat = np.squeeze(r.as_matrix())
+            else:
+                # rotation matrix given
+                self.rot_mat = rotation
         
+        self.n = self.rot_mat @ (n/np.linalg.norm(n))
+
     def __str__(self):
         return "Half plane with normal {}".format(self.normal)
 
-    def func(self,x,offset):
-        n = jnp.array(self.n)
+    def func(self,x,offset=0):
+        n = jnp.array(self.rot_mat @ self.n)
         x = jnp.array(x)
-        return jnp.abs(n.T.dot(x)) - offset
-    
-    def plot(self,x0,color='red'):
+        return jnp.array(n.T.dot(x) - offset, float) # This puts safe side in direction of normal vector
+
+    def plot(self,ax,x,color='red',d=5.):
         """Plot the halfplane"""
-        plt.plot(self.xp, self.yp, "-r",linewidth=3)
-        plt.axis('equal')
+        if len(self.n) == 2:
+            self.plot2d(ax,x,color)
+        elif len(self.n) == 3:
+            self.plot3d(ax,x,color)
+
+    def plot2d(self,ax,x,color='red',dist=5):
+        # ax + by + c = 0
+        # norm: n = [a,b]
+        # d = sqrt((x0-x1)**2 + (y0-y1)**2)
+
+        # Find 2 points on the line in both directions from x
+        x0,y0 = x
+        a,b = self.n
+        c = -x.dot(self.n)
+        d = dist
+
+        if a == 0:
+            # Horizontal line. Easy to calculate
+            x1,x2 = x0 + d, x0 - d
+            y1,y2 = y0, y0
+        else:
+            # System of equations from distance formula and plane equation solved for y1
+            y1 = (np.sqrt((-2*a**2*y0 + 2*a*b*x0 + 2*b*c)**2 - 4*(a**2 + b**2)*
+                        (-a**2*d**2 + a**2*x0**2 + a**2*y0**2 + 2*a*c*x0 + c**2))
+                            + 2*a**2*y0 - 2*a*b*x0 - 2*b*c)/(2*(a**2 + b**2))
+            x1 = -(b*y1 + c)/a
+            y2 =-(np.sqrt((-2*a**2*y0 + 2*a*b*x0 + 2*b*c)**2 - 4*(a**2 + b**2)*
+                        (-a**2*d**2 + a**2*x0**2 + a**2*y0**2 + 2*a*c*x0 + c**2))
+                            + 2*a**2*y0 - 2*a*b*x0 - 2*b*c)/(2*(a**2 + b**2))
+            x2 = -(b*y2 + c)/a
+
+        xx = [x1, x0, x2]
+        yy = [y1, y0, y2]
+
+        plt.plot(xx, yy, color=color,linewidth=3)
+
+    def plot3d(self,ax,x,color='red',dist=5):
+        x = np.array(x)
+        d = -x.dot(self.n)
         
-        
+        if self.n[2] != 0:
+            # create x,y
+            xx,yy= np.meshgrid(range(x[0]-dist,x[0]+dist),range(x[1]-dist,x[1]+dist))
+            # calculate corresponding z
+            zz = (-self.n[0]*xx - self.n[1]*yy - d)/self.n[2]
+        else:
+            # Normal has no z component, cannot divide by 0
+            # create x, z
+            xx,zz= np.meshgrid(range(x[0]-dist,x[0]+dist),range(x[2]-dist,x[2]+dist))
+            # calculate corersponding y
+            yy = (-self.n[0]*xx - self.n[2]*zz - d)/self.n[1]
+            
+        # plot the surface
+        ax.plot_surface(xx, yy, zz, color=color, alpha=0.5)        
+
