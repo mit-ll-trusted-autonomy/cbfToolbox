@@ -38,9 +38,9 @@ class Vertex(ABC):
             u = np.zeros(self.dynamics.m)
         self.state = self.dynamics.step(self.state,u,dt)
 
-    def plot(self):
+    def plot(self,ax):
         """Plot the Vertex object"""
-        self.shape.plot(self.state,color=self.color)
+        self.shape.plot(ax,self.state,color=self.color)
 
 class Agent(Vertex):
     """Control inputs for an agent are solved for by the Gurobi model"""
@@ -107,6 +107,7 @@ class Agent(Vertex):
         """Set the goal value. Make sure it is of type Vertex"""
         if not isinstance(value,Vertex) and value is not None:
             raise ValueError('Must pass in a Vertex object')
+        value.color = self.color
         self._goal = value
 
     def add_vel_constr(self,m):
@@ -123,9 +124,9 @@ class Agent(Vertex):
         self.u_hist.append(self.u)
         self.dt = dt
 
-    def plot(self):
+    def plot(self,ax):
         """Plot the agent"""
-        super().plot()
+        super().plot(ax)
 
         if type(self.dynamics) is UnicycleNID:
             r = self.shape.radius
@@ -137,13 +138,13 @@ class Agent(Vertex):
             plt.gca().arrow(x,y,dx,dy,length_includes_head=True, width=2*r*.05, head_width=2*r*.3, fc=self.color,ec=self.color)
         
         if self.plot_path:
-            plt.plot(self.trajectory[:,0],self.trajectory[:,1],color=self.color)
+            plt.plot(self.trajectory[:,0],self.trajectory[:,1],color=self.color, linewidth=5)
 
         if self.plot_arrows:
             self.plot_control()
 
         if self.goal is not None:
-            self.goal.plot()
+            self.goal.plot(ax)
 
     def plot_control(self):
         """Plot the arrows that represent safe control action and desired control/direction to goal"""
@@ -175,10 +176,10 @@ class Obstacle(Vertex):
 
 class Goal(Vertex):
     """Object that relates to an Agent through a CLF. Agent will move toward a goal"""
-    def __init__(self, state, dynamics=SingleIntegrator2d(), p=1.0, gamma=0.25, H=None):
+    def __init__(self, state, shape=Point(), dynamics=SingleIntegrator2d(), p=1.0, gamma=0.25, H=None):
         state = np.array(state, dtype=np.float32)
         self.p = p
         self.gamma = gamma
         self.H = H
         self.u = np.zeros(dynamics.m)
-        super().__init__(state, Point(), dynamics)
+        super().__init__(state, shape, dynamics)
