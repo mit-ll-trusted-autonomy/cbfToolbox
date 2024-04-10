@@ -35,13 +35,11 @@ class Simulation(object):
         self.obsts = list()
         self.control = list() # List of length len(self.agents) with either the control vector or the CLF object for each agent
         self.cbf_by_agent = list() # list of lists for all CBFs for each agent
-        
         self.m = Model('clf_cbf_qp')
         self.m.Params.LogToConsole = 0 #Stop optimizer from publishing results to console
-
         self.step_num = 0
-        
         self.ready_to_sim = False
+        self.fig, self.ax = plt.subplots(1,1)
 
     def add_agent(self, agent, control, upper_bounds=1.0, lower_bounds=-1.0):
         """Adds an agent to the simulation. Must provide either a goal or u_ref
@@ -124,8 +122,32 @@ class Simulation(object):
         self.m.optimize()
         self.m.update()
         if self.m.SolCount == 0:
-            print('No solution?')
-
+            # Model requires a control too large to satisfy CBF constraint
+            self.m.reset()
+            self.m.setObjective(LinExpr())
+            self.m.remove(self.m.getConstrs())
+            self.m.remove(self.m.getQConstrs())
+            self.m.update()
+            unsafe_agts = set()
+            for a_idx, agent_cbfs in enumerate(self.cbf_by_agent):
+                for cbf in agent_cbfs:
+                    if cbf.h_hist[-1] < 0:
+                        # Rewrite with infeasible CBF to just move agent toward safety
+                        unsafe_agts.add(a_idx)
+                        cbf.step_toward_safety(self.m)
+                    else:
+                        cbf.add_cbf(self.m)
+            for a_idx,control in enumerate(self.control):
+                if a_idx not in unsafe_agts:
+                    if isinstance(control,CLF):
+                        control.add_clf(self.m)
+                
+            # Try solving again
+            self.m.optimize()
+            self.m.update()
+            if self.m.SolCount == 0:
+                print('No Solution')
+                
     def step(self, dt=0.1):
         """Solves the Gurobi model and moves time forward one step"""
         if not self.ready_to_sim:
@@ -185,11 +207,11 @@ class Simulation(object):
 
     def plot(self):
         """Plots a single instance of time of the simulation"""
-        plt.cla()
-        plt.gca().axis('equal')
+        self.ax.cla()
+        self.ax.axis('equal')
 
-        [a.plot() for a in self.agents]
-        [o.plot() for o in self.obsts]
+        [a.plot(self.ax) for a in self.agents]
+        [o.plot(self.ax) for o in self.obsts]
 
         # if hasattr(self,'xlim'):
         #     plt.xlim(self.xlim)
@@ -197,7 +219,23 @@ class Simulation(object):
 
         plt.title("Steps: {}".format(self.step_num))
 
+        font = {'family' : 'DejaVu Sans',
+                'size'   : 16}
+        matplotlib.rc('font', **font)
+
         plt.pause(.01)
+
+    def plot_functions(self):
+        fig, axs = plt.subplots(2,1, sharex=True)
+        for clf in self.control:
+            clf.plot(ax=axs[0])
+        axs[0].set_title('Control Lyapunov Function Values')
+
+        for cbfs in self.cbf_by_agent:
+            for cbf in cbfs:
+                cbf.plot(ax=axs[1])
+        axs[1].set_title('Control Barrier Function Values')
+        plt.show()
 
     def set_plot_lims(self,xlim,ylim):
         """Sets the axis plot limits"""

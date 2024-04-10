@@ -94,16 +94,22 @@ class CLF(Edge):
         # Save data to plot
         self.v_hist.append(v)
 
-    def plot(self, ax=None):
+    def plot(self, ax=None, color=None):
         """Plot the CLF value over time"""
         if ax is None:
             plt.cla()
-            plt.plot(self.v_hist,'-')
+            if color is None:
+                plt.plot(self.v_hist,'-')
+            else:
+                plt.plot(self.v_hist,'-', color=color)
             plt.title('Lyapunov Function Value')
             plt.pause(.001) # Need to pause for plot to update
             plt.show()
         else:
-            ax.plot(self.v_hist,'-')
+            if color is None:
+                ax.plot(self.v_hist,'-')
+            else:
+                ax.plot(self.v_hist,'-', color=color, linewidth=5)
         
 
 
@@ -138,15 +144,37 @@ class CBF(Edge):
 
         # Save data to plot
         self.h_hist.append(h)
+
+    def step_toward_safety(self,m):
+        x_agent = self.agent.state
+        u_agent = self.agent.u
+        x_obs = self.vertex.state
+        u_obs = self.vertex.u
+        x = x_agent - x_obs
+        u = u_agent - u_obs
+        xdot = self.agent.dynamics.dx(x_agent,u_agent) - self.vertex.dynamics.dx(x_obs,u_obs)
+        agent_rad = self.agent.shape.radius
+
+        grad_h = np.array(grad(self.barrier, argnums=0)(x,agent_rad))
+        lg_h = grad_h.T.dot(xdot)
+        # m.setObjective(grad_h.T.dot(xdot), GRB.MAXIMIZE)
+        m.setObjective(m.getObjective() - 100*lg_h + u.T.dot(u), GRB.MINIMIZE)
+        m.update()
     
-    def plot(self, ax=None):
+    def plot(self, ax=None, color=None):
         """Plot the CBF value over time"""
         if ax is None:
             plt.cla()
-            plt.plot(self.h_hist,'-')
+            if color is None:
+                plt.plot(self.h_hist,'-')
+            else:
+                plt.plot(self.h_hist,'-',color=color)
             plt.title('Barrier Function Value')
             plt.pause(.001) # Need to pause for plot to update
             plt.show()
         else:
-            ax.plot(self.h_hist, '-')
+            if color is None:
+                ax.plot(self.h_hist,'-')
+            else:
+                ax.plot(self.h_hist,'-',color=color, linewidth=5)
         
