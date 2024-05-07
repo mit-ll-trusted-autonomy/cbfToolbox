@@ -33,16 +33,12 @@ def main():
     g = lambda x : np.zeros([2,2]) # Control function
     drifting_up = Dynamics(n,m,f,g)
 
-    # Here we define the shapes that we will use
-    sphere_half = Sphere(radius=0.5)
-    ellipse = Ellipsoid([1.0,0.5],45)
-
     # Now with dynamics defined and shapes defined, we create the Vertex objects
     state1 = np.array([0.,0.])
     state2 = np.array([5.,4.])
-    a1 = Agent(state=state1, radius=0.5, dynamics=single_int)
-    a2 = Agent(state=state2, radius=0.5, dynamics=single_int)
-    o1 = Obstacle(state=[2.,0.], shape=ellipse, dynamics=drifting_up)
+    a1 = Agent(state=state1, shape=Sphere(0.5), dynamics=single_int)
+    a2 = Agent(state=state2, shape=Sphere(0.5), dynamics=single_int)
+    o1 = Obstacle(state=[2.,0.], shape=Ellipsoid([1.0,0.5],45), dynamics=drifting_up)
     g1 = Goal(state2)
     g2 = Goal(state1)
 

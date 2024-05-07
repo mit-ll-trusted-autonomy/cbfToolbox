@@ -45,8 +45,8 @@ class Vertex(ABC):
 class Agent(Vertex):
     """Control inputs for an agent are solved for by the Gurobi model"""
 
-    def __init__(self, state, radius, dynamics, safety=True, plot_arrows=False, plot_path=False, color='green', k=1.0, p=1.0):
-        super().__init__(state, Sphere(radius), dynamics, color)
+    def __init__(self, state, shape, dynamics, safety=True, plot_arrows=False, plot_path=False, color='green', k=1.0, p=1.0):
+        super().__init__(state, shape, dynamics, color)
         
         # Boolean params
         self.safety = safety
