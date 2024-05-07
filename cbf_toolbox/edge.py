@@ -70,7 +70,6 @@ class CLF(Edge):
         x = x_agent - x_goal
         u = u_agent - u_goal
         xdot = self.agent.dynamics.dx(x_agent,u_agent) - self.vertex.dynamics.dx(x_goal,u_goal)
-        agent_rad = self.agent.shape.radius
         
         p = self.p
         gamma = self.gamma
