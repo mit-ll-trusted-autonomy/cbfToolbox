@@ -31,6 +31,10 @@ class Shape(ABC):
 
 class Point(Shape):
     """A single point in space. If given an offset, it similar to a sphere"""
+    def __init__(self) -> None:
+        super().__init__()
+        self.radius = 0
+    
     def func(self, x, offset=0):
         """Function that defines the shape"""
         return x.T.dot(x) - offset**2
@@ -255,26 +259,68 @@ class Cylinder(Shape):
         # If no rotation is given, then cylinder is aligned to the x axis (x[0])
         if rotation is None:
             self.rot_mat = np.identity(self.ndim)
-        
-        if isinstance(rotation,(list,tuple)):
-            rotation = np.array(rotation)
-        if rotation.size == 3:
-            # Euler angles
-            alpha,beta,gamma = rotation
-            r = R.from_euler('zyx', [[alpha, beta, gamma]], degrees=True)
-            self.rot_mat = np.squeeze(r.as_matrix())
         else:
-            # rotation matrix given
-            self.rot_mat = rotation
+            if isinstance(rotation,(list,tuple)):
+                rotation = np.array(rotation)
+            if rotation.size == 3:
+                # Euler angles
+                alpha,beta,gamma = rotation
+                r = R.from_euler('zyx', [[alpha, beta, gamma]], degrees=True)
+                self.rot_mat = np.squeeze(r.as_matrix())
+            else:
+                # rotation matrix given
+                self.rot_mat = rotation
 
         self.unit_vec = self.rot_mat @ np.array([1.,0.,0.])
 
     def func(self,x,offset):
-        # Create a normal vec between cylinder axis and x
         v = jnp.array(self.unit_vec)
-        M = jnp.array(self.rot_mat @ jnp.array([[0,0,0],[0,1,0],[0,0,1]]) @ self.rot_mat.T)
-        return jnp.array(v.T.dot(M).dot(x) - offset, float)
+        d = jnp.linalg.norm(jnp.cross(x,v)) # / jnp.linalg.norm(v)
+        return d - self.radius - offset
     
-    def plot(self, ax, x):
-        return super().plot(ax, x)
+    def plot(self, ax, x, cyl_len=None, color='red'):
+        
+        # Cylinder exists infintiely, but only plotted to this length
+        if cyl_len is None:
+            cyl_len = self.radius * 6
+
+        # Calculate aligned with x-axis at (0,0,0) and then rotate and translate
+        inc = 0.5
+        xs = np.arange(-cyl_len/2, cyl_len/2 + inc, inc)
+        if len(xs) % 2 != 0:
+            xs = np.hstack((xs[0], xs))
+
+        # Calculate (y,z) coords for each circular slice
+        deg = list(range(0,360,5))
+        deg.append(0)
+        
+        yl = [self.radius * np.sin(np.radians(d)) for d in deg]
+        zl = [self.radius * np.cos(np.radians(d)) for d in deg]
+        yz_arr = np.array([yl, zl])
+        
+        xl = [xs[0]] * len(yl)
+        xyz_arr = np.vstack((xl, yz_arr))
+        xyz = np.copy(xyz_arr)
+        for xval in xs[1:]:
+            this_xyz = np.copy(xyz)
+            this_xyz[0,:] = np.array([xval] * len(yl))
+            xyz_arr = np.hstack((xyz_arr, this_xyz))
+
+        # Rotate
+        xyz_arr = self.rot_mat @ xyz_arr
+
+        # Translate
+        xx = xyz_arr[0,:] + x[0]
+        yy = xyz_arr[1,:] + x[1]
+        zz = xyz_arr[2,:] + x[2]
+
+        
+        shape = (2,int(xx.shape[0]/2))
+        xx = xx.reshape(shape)
+        yy= yy.reshape(shape)
+        zz = zz.reshape(shape)
+        
+        # Plot
+        ax.plot_surface(xx, yy, zz, alpha=0.5, color=color)
+        
 

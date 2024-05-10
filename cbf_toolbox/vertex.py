@@ -138,7 +138,10 @@ class Agent(Vertex):
             plt.gca().arrow(x,y,dx,dy,length_includes_head=True, width=2*r*.05, head_width=2*r*.3, fc=self.color,ec=self.color)
         
         if self.plot_path:
-            plt.plot(self.trajectory[:,0],self.trajectory[:,1],color=self.color, linewidth=5)
+            if len(self.state) == 2:
+                plt.plot(self.trajectory[:,0],self.trajectory[:,1],color=self.color, linewidth=5)
+            else:
+                plt.plot(self.trajectory[:,0], self.trajectory[:,1], self.trajectory[:,2],color=self.color, linewidth=5)
 
         if self.plot_arrows:
             self.plot_control()
@@ -168,8 +171,8 @@ class Agent(Vertex):
 
 class Obstacle(Vertex):
     """Object that relates to an agent through a CBF. Agent will avoid collision with obstacles"""
-    def __init__(self, state, shape, dynamics, k=1.0, p=1.0):
-        super().__init__(state, shape, dynamics)
+    def __init__(self, state, shape, dynamics, k=1.0, p=1.0, color='red'):
+        super().__init__(state, shape, dynamics, color=color)
         self.k = k
         self.p = p
         self.u = np.zeros(dynamics.m)

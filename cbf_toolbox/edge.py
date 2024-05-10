@@ -70,7 +70,6 @@ class CLF(Edge):
         x = x_agent - x_goal
         u = u_agent - u_goal
         xdot = self.agent.dynamics.dx(x_agent,u_agent) - self.vertex.dynamics.dx(x_goal,u_goal)
-        agent_rad = self.agent.shape.radius
         
         p = self.p
         gamma = self.gamma
@@ -137,6 +136,12 @@ class CBF(Edge):
 
         h = self.barrier(x,agent_rad)
         grad_h = np.array(grad(self.barrier, argnums=0)(x,agent_rad))
+
+        if np.isnan(grad_h[0]):
+            # Try pushing x slightly in any direction
+            x[0] += .001
+            grad_h = np.array(grad(self.barrier, argnums=0)(x,agent_rad))
+            
         lg_h = grad_h.T.dot(xdot)
 
         m.addConstr((lg_h)>=-k*h**p, "cbf")
