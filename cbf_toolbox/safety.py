@@ -251,8 +251,8 @@ class Simulation3d(Simulation):
                  zlim=(0, 5.)):
         super().__init__(stop_time=stop_time)
         self.title = title
-        self.fig = plt.figure()
-        self.ax = Axes3D.Axes3D(self.fig)
+        self.fig.axes[0].remove()
+        self.ax = self.fig.add_axes((0.0,0.0,1.0,1.0),projection='3d')
         self.ax.set_xlim3d(xlim)
         self.ax.set_xlabel('X')
         self.ax.set_ylim3d(ylim)
@@ -262,6 +262,7 @@ class Simulation3d(Simulation):
         self.fig.suptitle(f'{self.title}\nSteps: {self.step_num}')
 
     def plot(self):
+        self.ax.cla()
         [a.plot(self.ax) for a in self.agents]
         [o.plot(self.ax) for o in self.obsts]
 
