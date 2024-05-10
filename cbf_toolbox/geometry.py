@@ -251,7 +251,7 @@ class HalfPlane(Shape):
 
 class Cylinder(Shape):
     """A cylinder of infinite length"""
-    def __init__(self, r, rotation=None) -> None:
+    def __init__(self, r, rotation=None, invert=False) -> None:
         
         self.radius = r
         self.ndim = 3
@@ -272,11 +272,12 @@ class Cylinder(Shape):
                 self.rot_mat = rotation
 
         self.unit_vec = self.rot_mat @ np.array([1.,0.,0.])
+        self.sign = -1 if invert else 1
 
     def func(self,x,offset):
         v = jnp.array(self.unit_vec)
         d = jnp.linalg.norm(jnp.cross(x,v)) # / jnp.linalg.norm(v)
-        return d - self.radius - offset
+        return (d - self.radius - offset) * self.sign
     
     def plot(self, ax, x, cyl_len=None, color='red'):
         
