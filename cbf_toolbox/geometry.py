@@ -31,6 +31,11 @@ class Shape(ABC):
 
 class Point(Shape):
     """A single point in space. If given an offset, it similar to a sphere"""
+    def __init__(self, ndim=2, marker='x'):
+        self.ndim = ndim
+        self.radius = 0
+        self.marker = marker
+    
     def func(self, x, offset=0):
         """Function that defines the shape"""
         return x.T.dot(x) - offset**2
@@ -38,9 +43,9 @@ class Point(Shape):
     def plot(self,ax,x,color='red'):
         """Plot the shape"""
         if len(x) == 2:
-            ax.plot(x[0], x[1],'x',color=color,mew=3)
+            ax.plot(x[0], x[1],self.marker,color=color,mew=3)
         elif len(x) == 3:
-            ax.plot3D([x[0]],[x[1]],[x[2]],color=color, marker='x')
+            ax.plot3D([x[0]],[x[1]],[x[2]],color=color, marker=self.marker)
 
 class Ellipsoid(Shape):
     def __init__(self, axes, rotation=None, invert=False, degrees=True):
