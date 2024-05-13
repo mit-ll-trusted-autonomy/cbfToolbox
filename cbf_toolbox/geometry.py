@@ -31,9 +31,10 @@ class Shape(ABC):
 
 class Point(Shape):
     """A single point in space. If given an offset, it similar to a sphere"""
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, ndim=2, marker='x'):
+        self.ndim = ndim
         self.radius = 0
+        self.marker = marker
     
     def func(self, x, offset=0):
         """Function that defines the shape"""
@@ -42,9 +43,9 @@ class Point(Shape):
     def plot(self,ax,x,color='red'):
         """Plot the shape"""
         if len(x) == 2:
-            ax.plot(x[0], x[1],'x',color=color,mew=3)
+            ax.plot(x[0], x[1],self.marker,color=color,mew=3)
         elif len(x) == 3:
-            ax.plot3D([x[0]],[x[1]],[x[2]],color=color, marker='x')
+            ax.plot3D([x[0]],[x[1]],[x[2]],color=color, marker=self.marker)
 
 class Ellipsoid(Shape):
     def __init__(self, axes, rotation=None, invert=False, degrees=True):
@@ -248,7 +249,6 @@ class HalfPlane(Shape):
         # plot the surface
         ax.plot_surface(xx, yy, zz, color=color, alpha=0.5)        
 
-
 class Cylinder(Shape):
     """A cylinder of infinite length"""
     def __init__(self, r, rotation=None, invert=False) -> None:
@@ -320,5 +320,3 @@ class Cylinder(Shape):
         
         # Plot
         ax.plot_surface(xx, yy, zz, alpha=0.5, color=color)
-        
-
