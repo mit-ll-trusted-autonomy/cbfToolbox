@@ -154,7 +154,6 @@ class Sphere(Ellipsoid):
 
 class HalfPlane(Shape):
     """A planar region consisting of all points on one side of an infinite straight line"""
-    # Currently only tested for 2D
     def __init__(self, n, rotation=None, degrees=True) -> None:
         if len(n) > 3:
             # Rotation not currently defined for ndim > 3
@@ -184,7 +183,7 @@ class HalfPlane(Shape):
         return "Half plane with normal {}".format(self.normal)
 
     def func(self,x,offset=0):
-        n = jnp.array(self.rot_mat @ self.n)
+        n = jnp.array(self.n)
         x = jnp.array(x)
         return jnp.array(n.T.dot(x) - offset, float) # This puts safe side in direction of normal vector
 
@@ -232,16 +231,15 @@ class HalfPlane(Shape):
         
         if self.n[2] != 0:
             # create x,y
-            xx,yy= np.meshgrid(range(x[0]-dist,x[0]+dist),range(x[1]-dist,x[1]+dist))
+            xx,yy= np.meshgrid(np.arange(x[0]-dist,x[0]+dist),np.arange(x[1]-dist,x[1]+dist))
             # calculate corresponding z
             zz = (-self.n[0]*xx - self.n[1]*yy - d)/self.n[2]
         else:
             # Normal has no z component, cannot divide by 0
             # create x, z
-            xx,zz= np.meshgrid(range(x[0]-dist,x[0]+dist),range(x[2]-dist,x[2]+dist))
+            xx,zz= np.meshgrid(np.arange(x[0]-dist,x[0]+dist),np.arange(x[2]-dist,x[2]+dist))
             # calculate corersponding y
             yy = (-self.n[0]*xx - self.n[2]*zz - d)/self.n[1]
             
         # plot the surface
         ax.plot_surface(xx, yy, zz, color=color, alpha=0.5)        
-
