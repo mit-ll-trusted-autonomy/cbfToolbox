@@ -136,6 +136,15 @@ class CBF(Edge):
 
         h = self.barrier(x,agent_rad)
         grad_h = np.array(grad(self.barrier, argnums=0)(x,agent_rad))
+
+        for i in range(2):         
+            # Try pushing x slightly (repeat 2 times in different directions)   
+            if np.isnan(grad_h[0]):
+                x[i] += .001
+                grad_h = np.array(grad(self.barrier, argnums=0)(x,agent_rad))
+            else:
+                break
+
         lg_h = grad_h.T.dot(xdot)
 
         m.addConstr((lg_h)>=-k*h**p, "cbf")

@@ -14,38 +14,21 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from cbf_toolbox.geometry import Sphere, Ellipsoid
+from cbf_toolbox.geometry import Sphere, Ellipsoid, HalfPlane
 from cbf_toolbox.dynamics import Dynamics, SingleIntegrator2d
 from cbf_toolbox.vertex import Agent, Obstacle, Goal
 from cbf_toolbox.safety import Simulation
 
 def main():
     
-    # Dynamics determine how the Vertex objects move
-    # Some Dynamics are predefined, like SingelIntegrator2d()
-    single_int = SingleIntegrator2d()
-
-    # Users can also define dynamics programatically.
-    # Let's define a model that drifts along the positive y-axis
-    n = 2 # Size of the state vector
-    m = 2 # Size of the input vector
-    f = lambda x : np.array([0,0.5]) # Drift function
-    g = lambda x : np.zeros([2,2]) # Control function
-    drifting_up = Dynamics(n,m,f,g)
-
     # Now with dynamics defined and shapes defined, we create the Vertex objects
-    state1 = np.array([0.,0.])
-    state2 = np.array([5.,4.])
-    a1 = Agent(state=state1, shape=Sphere(0.5), dynamics=single_int)
-    a2 = Agent(state=state2, shape=Sphere(0.5), dynamics=single_int)
-    o1 = Obstacle(state=[2.,0.], shape=Ellipsoid([1.0,0.5],45), dynamics=drifting_up)
-    g1 = Goal(state2)
-    g2 = Goal(state1)
-
+    a1 = Agent(state=np.array([0.,0.]), shape=Sphere(0.5), dynamics=SingleIntegrator2d())
+    o1 = Obstacle(state=np.array([2.,0.]), shape=HalfPlane(np.array([-1,0]), rotation=30), dynamics=SingleIntegrator2d())
+    g1 = Goal(np.array([5.,0.]))
+    
     # Now we can add everything to a simulation object
     s = Simulation()
     s.add_agent(agent=a1, control=g1)
-    s.add_agent(agent=a2, control=g2)
     s.add_obstacle(obst=o1)
 
     # When everything is added, we can call the simulate function
@@ -53,17 +36,7 @@ def main():
     # the proper Edges to connect the Vertex objects (the CBF and CLF objects)
     s.simulate(num_steps=100, dt = 0.1)
 
-    # When the simulation is over, we can examine the barrier function and Lyapunov function values over time
-    fig, axs = plt.subplots(2,1, sharex=True)
-    for clf in s.control:
-        clf.plot(ax=axs[0])
-    axs[0].set_title('Control Lyapunov Function Values')
-
-    for cbfs in s.cbf_by_agent:
-        for cbf in cbfs:
-            cbf.plot(ax=axs[1])
-    axs[1].set_title('Control Barrier Function Values')
-    plt.show()
+    s.plot_functions()
 
 if __name__ == '__main__':
     main()

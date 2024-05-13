@@ -13,6 +13,7 @@
 # Author: Andrew Schoer, andrew.schoer@ll.mit.edu
 
 import numpy as np
+from cbf_toolbox.geometry import Sphere
 from cbf_toolbox.vertex import Agent
 
 
@@ -21,7 +22,7 @@ class QuadCopter(Agent):
     Implements a QuadCopter visualization in 3 dimensions
     """
     def __init__(self, state, radius, dynamics, safety=True, plot_arrows=False, plot_path=False, color='green', k=1.0, p=1.0):
-        super().__init__(state, radius, dynamics, safety=safety, plot_arrows=plot_arrows, plot_path=plot_path, color=None, k=k, p=p)
+        super().__init__(state, Sphere(radius), dynamics, safety=safety, plot_arrows=plot_arrows, plot_path=plot_path, color=None, k=k, p=p)
 
         if self.dynamics.n < 3 or self.dynamics.m < 3:
             raise RuntimeError('Expecting 3d position vector in first three elements of state')
@@ -38,9 +39,9 @@ class QuadCopter(Agent):
         points[1,:] += self.state[1]
         points[2,:] += self.state[2]
         self.links[self.ax]['l1'].set_data(points[0,0:2],points[1,0:2])
-        self.links[self.ax]['l1'].set_3d_properties(points[2,0:2])
+        self.links[self.ax]['l1'].set_3d_properties(points[2,0:1])
         self.links[self.ax]['l2'].set_data(points[0,2:4],points[1,2:4])
-        self.links[self.ax]['l2'].set_3d_properties(points[2,2:4])
+        self.links[self.ax]['l2'].set_3d_properties(points[2,2:3])
         # avoid matplotlib bug by keeping line data as a sequency (e.g., 5:6 instead of just 5)
         # more info here: https://github.com/matplotlib/matplotlib/issues/22308
         self.links[self.ax]['hub'].set_data(points[0,5:6],points[1,5:6])
