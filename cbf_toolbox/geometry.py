@@ -286,10 +286,7 @@ class Cylinder(Shape):
             cyl_len = self.radius * 6
 
         # Calculate aligned with x-axis at (0,0,0) and then rotate and translate
-        inc = 0.5
-        xs = np.arange(-cyl_len/2, cyl_len/2 + inc, inc)
-        if len(xs) % 2 != 0:
-            xs = np.hstack((xs[0], xs))
+        xs = np.array([-cyl_len/2, cyl_len/2])
 
         # Calculate (y,z) coords for each circular slice
         deg = list(range(0,360,5))
